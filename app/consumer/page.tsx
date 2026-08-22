@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import ConsumerQuestionnaire from "./consumer-questionnaire";
 
 export default async function ConsumerPage() {
   const supabase = await createClient();
@@ -36,6 +37,8 @@ export default async function ConsumerPage() {
             refuses a refund or replacement.
           </p>
 
+          <ConsumerQuestionnaire />
+
           {error ? (
             <p className="mt-6 rounded-2xl bg-red-50 p-4 text-sm text-red-800">
               Consumer-rights data could not be loaded.
@@ -45,7 +48,7 @@ export default async function ConsumerPage() {
               No matching consumer-rights guidance is currently available.
             </p>
           ) : (
-            <div className="mt-6 space-y-4">
+            <div className="mt-8 space-y-4">
               {defective.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-black/10 p-5">
                   <p className="text-xs font-medium uppercase tracking-wider text-black/35">Recommended remedy</p>
