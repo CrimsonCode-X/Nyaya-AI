@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const scheme = body?.scheme;
-    const result = body?.result;
+    const result = body?.result ?? body?.assessment;
 
     if (!scheme || !result) {
       return NextResponse.json({ error: "Scheme and assessment result are required." }, { status: 400 });
@@ -17,20 +17,18 @@ export async function POST(request: Request) {
 
     const input = `You are the explanation layer for Nyaya-AI, a civic information assistant. Do not provide legal representation, invent eligibility rules, or change the deterministic assessment.
 
-Explain the following already-computed scheme assessment in plain, concise language.
+Explain this already-computed scheme assessment in plain, concise language.
 
 Scheme: ${JSON.stringify(scheme)}
 Assessment: ${JSON.stringify(result)}
 
 Rules:
-- Treat the assessment status and rule outcomes as authoritative for this response.
+- Treat the supplied assessment status and rule outcomes as authoritative.
 - Do not claim the user is legally entitled to a benefit.
-- Do not introduce eligibility conditions that are absent from the supplied data.
-- If status is eligible, explain why the supplied answers passed.
-- If status is not_eligible, explain the failed conditions without overstating the conclusion.
-- If verification is required, clearly say what must be verified and why.
-- Mention that the user should verify current requirements with the official source.
-- Return only 2 short paragraphs with headings: "Why this result" and "Before you apply".`;
+- Do not introduce eligibility conditions absent from the supplied data.
+- Explain why the supplied answers passed, failed, or still require verification.
+- Tell the user to verify current requirements with the official source.
+- Return only two short sections headed "Why this result" and "Before you apply".`;
 
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
