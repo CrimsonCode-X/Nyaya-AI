@@ -46,7 +46,8 @@ Rules:
     const data = await response.json();
     if (!response.ok) {
       console.error("OpenAI Responses API error", data);
-      return NextResponse.json({ error: "The AI explanation service failed." }, { status: 502 });
+      const providerMessage = typeof data?.error?.message === "string" ? data.error.message : "Unknown provider error.";
+      return NextResponse.json({ error: `AI service failed: ${providerMessage}` }, { status: 502 });
     }
 
     return NextResponse.json({ explanation: data.output_text ?? "No explanation was returned." });
