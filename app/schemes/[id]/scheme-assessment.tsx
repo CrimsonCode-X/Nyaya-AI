@@ -24,120 +24,86 @@ export function SchemeAssessment({ scheme, rules }: { scheme: Scheme; rules: Eli
   const fields = useMemo(() => [...new Set(rules.map((rule) => rule.field_key))], [rules]);
   const [answers, setAnswers] = useState<ApplicantProfile>({});
   const [submitted, setSubmitted] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explanationError, setExplanationError] = useState<string | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
 
   const result = submitted ? evaluateEligibility(rules, answers) : null;
 
   function setAnswer(field: string, value: string) {
     setAnswers((current) => ({ ...current, [field]: field === "age" || field === "family_income" ? Number(value) : value }));
     setSubmitted(false);
+    setExplanation(null);
+    setExplanationError(null);
   }
 
   const canSubmit = fields.every((field) => answers[field] !== null && answers[field] !== undefined && answers[field] !== "");
 
+  async function explainResult() {
+    if (!result) return;
+    setLoadingExplanation(true);
+    setExplanationError(null);
+    try {
+      const response = await fetch("/api/scheme-explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheme, result }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not generate an explanation.");
+      setExplanation(data.explanation);
+    } catch (error) {
+      setExplanationError(error instanceof Error ? error.message : "Could not generate an explanation.");
+    } finally {
+      setLoadingExplanation(false);
+    }
+  }
+
   return (
     <div className="mt-10">
       {!result ? (
-        <form
-          onSubmit={(event) => { event.preventDefault(); if (canSubmit) setSubmitted(true); }}
-          className="space-y-5"
-        >
+        <form onSubmit={(event) => { event.preventDefault(); if (canSubmit) setSubmitted(true); }} className="space-y-5">
           {fields.map((field) => (
             <label key={field} className="block rounded-2xl border border-black/10 bg-white p-5">
               <span className="font-medium">{labels[field] ?? field.replaceAll("_", " ")}</span>
               <span className="mt-1 block text-sm text-black/45">{help[field] ?? "Answer based on your current circumstances."}</span>
-
               {field === "nationality" ? (
-                <select
-                  className="mt-4 w-full rounded-xl border border-black/15 bg-white px-4 py-3 outline-none focus:border-black"
-                  value={(answers[field] as string) ?? ""}
-                  onChange={(e) => setAnswer(field, e.target.value)}
-                >
-                  <option value="">Select nationality</option>
-                  <option value="Indian">Indian</option>
-                  <option value="Other">Other</option>
+                <select className="mt-4 w-full rounded-xl border border-black/15 bg-white px-4 py-3 outline-none focus:border-black" value={(answers[field] as string) ?? ""} onChange={(e) => setAnswer(field, e.target.value)}>
+                  <option value="">Select nationality</option><option value="Indian">Indian</option><option value="Other">Other</option>
                 </select>
               ) : field === "social_category" ? (
-                <select
-                  className="mt-4 w-full rounded-xl border border-black/15 bg-white px-4 py-3 outline-none focus:border-black"
-                  value={(answers[field] as string) ?? ""}
-                  onChange={(e) => setAnswer(field, e.target.value)}
-                >
-                  <option value="">Select category</option>
-                  <option value="OBC">OBC</option>
-                  <option value="EBC">EBC</option>
-                  <option value="DNT">DNT</option>
-                  <option value="SC">SC</option>
-                  <option value="ST">ST</option>
-                  <option value="General">General</option>
+                <select className="mt-4 w-full rounded-xl border border-black/15 bg-white px-4 py-3 outline-none focus:border-black" value={(answers[field] as string) ?? ""} onChange={(e) => setAnswer(field, e.target.value)}>
+                  <option value="">Select category</option><option value="OBC">OBC</option><option value="EBC">EBC</option><option value="DNT">DNT</option><option value="SC">SC</option><option value="ST">ST</option><option value="General">General</option>
                 </select>
               ) : (
-                <input
-                  required
-                  min={0}
-                  type="number"
-                  className="mt-4 w-full rounded-xl border border-black/15 bg-white px-4 py-3 outline-none focus:border-black"
-                  value={(answers[field] as number) ?? ""}
-                  onChange={(e) => setAnswer(field, e.target.value)}
-                />
+                <input required min={0} type="number" className="mt-4 w-full rounded-xl border border-black/15 px-4 py-3 outline-none focus:border-black" value={(answers[field] as number) ?? ""} onChange={(e) => setAnswer(field, e.target.value)} />
               )}
             </label>
           ))}
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full rounded-full bg-[#171717] px-6 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            Check eligibility
-          </button>
+          <button type="submit" disabled={!canSubmit} className="w-full rounded-full bg-[#171717] px-6 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-30">Check eligibility</button>
         </form>
       ) : (
         <section className="space-y-5">
           <div className="rounded-3xl border border-black/10 bg-white p-7">
             <p className="text-sm font-medium text-black/40">Assessment result</p>
-            <h2 className="mt-2 text-3xl font-semibold">
-              {result.status === "eligible" ? "You appear eligible" : result.status === "not_eligible" ? "You do not appear eligible" : "Verification is still required"}
-            </h2>
-            <p className="mt-3 leading-7 text-black/55">
-              {result.status === "eligible"
-                ? "All machine-readable conditions in our current rule set passed."
-                : result.status === "not_eligible"
-                  ? "At least one machine-readable condition did not pass."
-                  : "No definitive condition failed, but one or more requirements require confirmation from an authority or official document."}
-            </p>
+            <h2 className="mt-2 text-3xl font-semibold">{result.status === "eligible" ? "You appear eligible" : result.status === "not_eligible" ? "You do not appear eligible" : "Verification is still required"}</h2>
+            <p className="mt-3 leading-7 text-black/55">{result.status === "eligible" ? "All machine-readable conditions in our current rule set passed." : result.status === "not_eligible" ? "At least one machine-readable condition did not pass." : "No definitive condition failed, but one or more requirements require confirmation from an authority or official document."}</p>
           </div>
 
-          {result.failed.length > 0 && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-              <h3 className="font-semibold">Conditions that did not pass</h3>
-              <ul className="mt-3 space-y-2 text-sm text-red-900">
-                {result.failed.map(({ rule }) => <li key={rule.id}>• {rule.explanation ?? rule.field_key}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {result.verification.length > 0 && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <h3 className="font-semibold">What you still need to verify</h3>
-              <ul className="mt-3 space-y-2 text-sm text-amber-950">
-                {result.verification.map(({ rule }) => <li key={rule.id}>• {rule.special_handling ?? rule.explanation ?? rule.field_key}</li>)}
-              </ul>
-            </div>
-          )}
+          {result.failed.length > 0 && <div className="rounded-2xl border border-red-200 bg-red-50 p-5"><h3 className="font-semibold">Conditions that did not pass</h3><ul className="mt-3 space-y-2 text-sm text-red-900">{result.failed.map(({ rule }) => <li key={rule.id}>• {rule.explanation ?? rule.field_key}</li>)}</ul></div>}
+          {result.verification.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5"><h3 className="font-semibold">What you still need to verify</h3><ul className="mt-3 space-y-2 text-sm text-amber-950">{result.verification.map(({ rule }) => <li key={rule.id}>• {rule.special_handling ?? rule.explanation ?? rule.field_key}</li>)}</ul></div>}
 
           <div className="rounded-2xl border border-black/10 bg-white p-5">
-            <h3 className="font-semibold">Authoritative source</h3>
-            <p className="mt-2 text-sm text-black/55">This assessment is based on the source attached to the scheme&apos;s eligibility rules.</p>
-            {scheme.official_url && (
-              <a href={scheme.official_url} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-medium underline underline-offset-4">
-                Open official scheme information →
-              </a>
-            )}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div><h3 className="font-semibold">Understand this result</h3><p className="mt-1 text-sm text-black/50">Get a plain-language explanation based only on the rules we evaluated.</p></div>
+              <button type="button" onClick={explainResult} disabled={loadingExplanation} className="shrink-0 rounded-full bg-[#171717] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">{loadingExplanation ? "Explaining…" : "Explain with AI"}</button>
+            </div>
+            {explanationError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{explanationError}</p>}
+            {explanation && <div className="mt-5 whitespace-pre-wrap rounded-2xl bg-black/[.03] p-5 text-sm leading-7 text-black/70">{explanation}</div>}
           </div>
 
-          <button onClick={() => { setAnswers({}); setSubmitted(false); }} className="text-sm font-medium underline underline-offset-4">
-            Start again
-          </button>
+          <div className="rounded-2xl border border-black/10 bg-white p-5"><h3 className="font-semibold">Authoritative source</h3><p className="mt-2 text-sm text-black/55">This assessment is based on the source attached to the scheme&apos;s eligibility rules.</p>{scheme.official_url && <a href={scheme.official_url} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-medium underline underline-offset-4">Open official scheme information →</a>}</div>
+          <button onClick={() => { setAnswers({}); setSubmitted(false); setExplanation(null); setExplanationError(null); }} className="text-sm font-medium underline underline-offset-4">Start again</button>
         </section>
       )}
     </div>
