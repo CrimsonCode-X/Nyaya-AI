@@ -96,7 +96,7 @@ export function SchemeAssessment({ scheme, rules }: { scheme: Scheme; rules: Eli
           <div className="rounded-2xl border border-black/10 bg-white p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div><h3 className="font-semibold">Understand this result</h3><p className="mt-1 text-sm text-black/50">Get a plain-language explanation based only on the rules we evaluated.</p></div>
-              <button type="button" onClick={explainResult} disabled={loadingExplanation} className="shrink-0 rounded-full bg-[#171717] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">{loadingExplanation ? "Explaining…" : "Explain with AI"}</button>
+              <button type="button" onClick={explainResult} disabled={loadingExplanation} className="shrink-0 rounded-full bg-[#171717] px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">{loadingExplanation ? "Preparing…" : "Understand this result"}</button>
             </div>
             {explanationError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{explanationError}</p>}
             {explanation && <div className="mt-5 whitespace-pre-wrap rounded-2xl bg-black/[.03] p-5 text-sm leading-7 text-black/70">{explanation}</div>}
